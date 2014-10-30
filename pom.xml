@@ -133,7 +133,7 @@
     </repositories>
     <scm>
         <connection>scm:git:ssh://git@github.com/whizzosoftware/hobson-hub-ssdp-scanner.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com/whizzosoftware/hobson-ssdp-scanner.git</developerConnection>
+        <developerConnection>scm:git:ssh://git@github.com/whizzosoftware/hobson-hub-ssdp-scanner.git</developerConnection>
         <tag>HEAD</tag>
     </scm>
     <distributionManagement>
