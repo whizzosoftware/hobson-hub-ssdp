@@ -8,7 +8,7 @@
 package com.whizzosoftware.hobson.ssdp;
 
 import com.whizzosoftware.hobson.api.disco.DeviceBridgeScanner;
-import com.whizzosoftware.hobson.api.disco.manager.DiscoManager;
+import com.whizzosoftware.hobson.api.disco.DiscoManager;
 import org.apache.felix.dm.DependencyActivatorBase;
 import org.apache.felix.dm.DependencyManager;
 import org.osgi.framework.BundleContext;

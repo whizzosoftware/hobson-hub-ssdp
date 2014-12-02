@@ -9,7 +9,8 @@ package com.whizzosoftware.hobson.ssdp;
 
 import com.whizzosoftware.hobson.api.disco.DeviceBridgeMetaData;
 import com.whizzosoftware.hobson.api.disco.DeviceBridgeScanner;
-import com.whizzosoftware.hobson.api.disco.manager.DiscoManager;
+import com.whizzosoftware.hobson.api.disco.DiscoManager;
+import com.whizzosoftware.hobson.api.util.UserUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,7 +96,7 @@ public class SSDPDeviceBridgeScanner implements DeviceBridgeScanner, Runnable {
                     retryCount = 0;
 
                     // create a String from the packet data
-                    processData(new String(p.getData(), 0, p.getLength(), "UTF8"));
+                    processData(UserUtil.DEFAULT_USER, UserUtil.DEFAULT_HUB, new String(p.getData(), 0, p.getLength(), "UTF8"));
                 } catch (SocketTimeoutException ste) {
                     logger.trace("Socket timed out; re-listening");
                 } catch (IOException ioe) {
@@ -139,11 +140,11 @@ public class SSDPDeviceBridgeScanner implements DeviceBridgeScanner, Runnable {
         multicastSocket.send(packet);
     }
 
-    private void processData(String data) {
+    private void processData(String userId, String hubId, String data) {
         logger.trace("Received data: {}", data);
 
         // send to DiscoManager for analysis
         DeviceBridgeMetaData entity = new DeviceBridgeMetaData(getId(), data);
-        discoManager.processDeviceBridgeMetaData(entity);
+        discoManager.processDeviceBridgeMetaData(userId, hubId, entity);
     }
 }
