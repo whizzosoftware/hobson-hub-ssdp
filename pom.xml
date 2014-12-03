@@ -103,6 +103,7 @@
                         <Import-Package>org.osgi.framework,org.osgi.service.event,org.apache.felix.dm.*,org.slf4j,com.whizzosoftware.hobson.api.*</Import-Package>
                         <Export-Package>com.whizzosoftware.hobson.ssdp</Export-Package>
                         <Bundle-Activator>com.whizzosoftware.hobson.ssdp.Activator</Bundle-Activator>
+                        <Bundle-Category>hobson-core-plugin</Bundle-Category>
                     </instructions>
                 </configuration>
             </plugin>
