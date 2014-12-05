@@ -47,7 +47,7 @@
         <dependency>
             <groupId>com.whizzosoftware.hobson.hub</groupId>
             <artifactId>hobson-hub-api</artifactId>
-            <version>0.1.7</version>
+            <version>0.1.8-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -72,6 +72,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
+                <version>2.4</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>
@@ -84,6 +85,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
+                <version>2.10.1</version>
                 <executions>
                     <execution>
                         <id>attach-javadocs</id>
@@ -96,13 +98,14 @@
             <plugin>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>maven-bundle-plugin</artifactId>
-                <version>2.4.0</version>
+                <version>2.5.3</version>
                 <extensions>true</extensions>
                 <configuration>
                     <instructions>
                         <Import-Package>org.osgi.framework,org.osgi.service.event,org.apache.felix.dm.*,org.slf4j,com.whizzosoftware.hobson.api.*</Import-Package>
                         <Export-Package>com.whizzosoftware.hobson.ssdp</Export-Package>
-                        <Bundle-Activator>com.whizzosoftware.hobson.ssdp.Activator</Bundle-Activator>
+                        <Bundle-Activator>com.whizzosoftware.hobson.api.osgi.activator.HobsonBundleActivator</Bundle-Activator>
+                        <Provide-Capability>hobson.plugin=com.whizzosoftware.hobson.ssdp.SSDPScannerPlugin</Provide-Capability>
                         <Bundle-Category>hobson-core-plugin</Bundle-Category>
                     </instructions>
                 </configuration>
