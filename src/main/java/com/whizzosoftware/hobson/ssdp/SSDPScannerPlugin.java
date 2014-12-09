@@ -24,7 +24,6 @@ import java.util.Dictionary;
 public class SSDPScannerPlugin extends AbstractHobsonPlugin implements Runnable {
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
-    public static final String PROTOCOL_ID = "ssdp";
     private static final int PORT = 1900;
 
     private Thread discoThread;
@@ -97,11 +96,27 @@ public class SSDPScannerPlugin extends AbstractHobsonPlugin implements Runnable 
                     retryCount = 0;
 
                     // create a String from the packet data
-                    String data = new String(p.getData(), 0, p.getLength(), "UTF8");
+                    final String data = new String(p.getData(), 0, p.getLength(), "UTF8");
                     logger.trace("Received data: {}", data);
 
                     // publish the advertisement
-                    fireDeviceAdvertisement(new DeviceAdvertisement(PROTOCOL_ID, data));
+                    try {
+                        final SSDPPacket packet = new SSDPPacket(data);
+                        if (packet.getUSN() != null && packet.getLocation() != null) {
+                            // execute this in the event loop so we can get on with processing UDP packets as
+                            // quickly as possible
+                            executeInEventLoop(new Runnable() {
+                                @Override
+                                public void run() {
+                                    fireDeviceAdvertisement(new DeviceAdvertisement(packet.getUSN(), SSDPPacket.PROTOCOL_ID, data, packet));
+                                }
+                            });
+                        } else {
+                            logger.debug("Ignoring SSDP packet with USN {} and location: {}", packet.getUSN(), packet.getLocation());
+                        }
+                    } catch (Exception e) {
+                        logger.error("Error creating SSDP packet", e);
+                    }
                 } catch (SocketTimeoutException ste) {
                     logger.trace("Socket timed out; re-listening");
                 } catch (IOException ioe) {
@@ -140,7 +155,7 @@ public class SSDPScannerPlugin extends AbstractHobsonPlugin implements Runnable 
 
     private void sendDiscoveryPacket() throws IOException {
         logger.debug("Sending SSDP discovery packet");
-        byte[] disco = "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 120\r\nST: ssdp:all\r\n".getBytes();
+        byte[] disco = "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 5\r\nST: ssdp:all\r\n\r\n".getBytes();
         DatagramPacket packet = new DatagramPacket(disco, disco.length, address, PORT);
         multicastSocket.send(packet);
     }
