@@ -112,7 +112,7 @@ public class SSDPScannerPlugin extends AbstractHobsonPlugin implements Runnable 
                                 }
                             });
                         } else {
-                            logger.debug("Ignoring SSDP packet with USN {} and location: {}", packet.getUSN(), packet.getLocation());
+                            logger.trace("Ignoring SSDP packet with USN {} and location: {}", packet.getUSN(), packet.getLocation());
                         }
                     } catch (Exception e) {
                         logger.error("Error creating SSDP packet", e);
