@@ -42,7 +42,7 @@ public class SSDPScannerPlugin extends AbstractHobsonPlugin implements Runnable 
     @Override
     public void onStartup(Dictionary config) {
         try {
-            logger.info("SSDP scanner starting");
+            logger.debug("SSDP scanner starting");
             address = InetAddress.getByName("239.255.255.250");
             if (discoThread == null) {
                 discoThread = new Thread(this, "SSDP Scanner");
