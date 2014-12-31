@@ -9,6 +9,7 @@ package com.whizzosoftware.hobson.ssdp;
 
 import com.whizzosoftware.hobson.api.disco.DeviceAdvertisement;
 import com.whizzosoftware.hobson.api.plugin.AbstractHobsonPlugin;
+import com.whizzosoftware.hobson.api.plugin.PluginStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,8 +49,10 @@ public class SSDPScannerPlugin extends AbstractHobsonPlugin implements Runnable 
                 discoThread = new Thread(this, "SSDP Scanner");
                 discoThread.start();
             }
+            setStatus(new PluginStatus(PluginStatus.Status.RUNNING));
         } catch (UnknownHostException e) {
             logger.error("Unable to lookup UDP address", e);
+            setStatus(new PluginStatus(PluginStatus.Status.FAILED, "A startup error occurred - see log for details."));
         }
     }
 
@@ -63,14 +66,6 @@ public class SSDPScannerPlugin extends AbstractHobsonPlugin implements Runnable 
 
     @Override
     public void onPluginConfigurationUpdate(Dictionary dictionary) {
-    }
-
-    public void refresh() {
-        try {
-            sendDiscoveryPacket();
-        } catch (IOException e) {
-            logger.error("Error sending SSDP discovery packet", e);
-        }
     }
 
     @Override
@@ -133,6 +128,7 @@ public class SSDPScannerPlugin extends AbstractHobsonPlugin implements Runnable 
             }
         } catch (IOException e) {
             logger.error("An unrecoverable exception occurred", e);
+            setStatus(new PluginStatus(PluginStatus.Status.FAILED, "An unrecoverable error occurred - see log for details."));
         }
 
         logger.debug("SSDP discovery thread is exiting");
