@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.whizzosoftware.hobson.hub</groupId>
     <artifactId>hobson-hub-ssdp-scanner</artifactId>
-    <version>0.2.0</version>
+    <version>0.2.1-SNAPSHOT</version>
     <packaging>bundle</packaging>
     <name>SSDP Scanner Plugin</name>
     <description>Provides the ability to locate SSDP services on the local network.</description>
@@ -138,7 +138,7 @@
     <scm>
         <connection>scm:git:ssh://git@github.com/whizzosoftware/hobson-hub-ssdp-scanner.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/whizzosoftware/hobson-hub-ssdp-scanner.git</developerConnection>
-        <tag>hobson-hub-ssdp-scanner-0.2.0</tag>
+        <tag>HEAD</tag>
     </scm>
     <distributionManagement>
         <repository>
