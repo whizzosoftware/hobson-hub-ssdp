@@ -2,11 +2,11 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.whizzosoftware.hobson.hub</groupId>
-    <artifactId>hobson-hub-ssdp-scanner</artifactId>
+    <artifactId>hobson-hub-ssdp</artifactId>
     <version>0.3.1-SNAPSHOT</version>
     <packaging>bundle</packaging>
-    <name>SSDP Scanner Plugin</name>
-    <description>Provides the ability to locate SSDP services on the local network.</description>
+    <name>SSDP Plugin</name>
+    <description>Provides the ability to locate and publish SSDP services on the local network.</description>
     <dependencies>
         <dependency>
             <groupId>org.apache.felix</groupId>
@@ -47,7 +47,7 @@
         <dependency>
             <groupId>com.whizzosoftware.hobson.hub</groupId>
             <artifactId>hobson-hub-api</artifactId>
-            <version>0.3.0</version>
+            <version>0.5.0-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -105,7 +105,7 @@
                         <Import-Package>org.osgi.framework,org.osgi.service.event,org.apache.felix.dm.*,org.slf4j,com.whizzosoftware.hobson.api.*</Import-Package>
                         <Export-Package>com.whizzosoftware.hobson.ssdp</Export-Package>
                         <Bundle-Activator>com.whizzosoftware.hobson.api.osgi.activator.HobsonBundleActivator</Bundle-Activator>
-                        <Provide-Capability>hobson.plugin=com.whizzosoftware.hobson.ssdp.SSDPScannerPlugin</Provide-Capability>
+                        <Provide-Capability>hobson.plugin=com.whizzosoftware.hobson.ssdp.SSDPPlugin</Provide-Capability>
                         <Bundle-Category>hobson-core-plugin</Bundle-Category>
                     </instructions>
                 </configuration>
@@ -136,14 +136,14 @@
         </repository>
     </repositories>
     <scm>
-        <connection>scm:git:ssh://git@github.com/whizzosoftware/hobson-hub-ssdp-scanner.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com/whizzosoftware/hobson-hub-ssdp-scanner.git</developerConnection>
+        <connection>scm:git:ssh://git@github.com/whizzosoftware/hobson-hub-ssdp.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/whizzosoftware/hobson-hub-ssdp.git</developerConnection>
         <tag>HEAD</tag>
     </scm>
     <distributionManagement>
         <repository>
             <id>bintray</id>
-            <url>https://api.bintray.com/maven/whizzosoftware/maven/hobson-hub-ssdp-scanner</url>
+            <url>https://api.bintray.com/maven/whizzosoftware/maven/hobson-hub-ssdp</url>
         </repository>
     </distributionManagement>
 </project>

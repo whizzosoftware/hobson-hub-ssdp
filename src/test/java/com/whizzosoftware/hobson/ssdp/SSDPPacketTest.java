@@ -12,8 +12,8 @@ import static org.junit.Assert.*;
 
 public class SSDPPacketTest {
     @Test
-    public void testConstructor() {
-        SSDPPacket packet = new SSDPPacket("NOTIFY * HTTP/1.1\r\n" +
+    public void testStringConstructor() {
+        SSDPPacket packet = SSDPPacket.createWithData("NOTIFY * HTTP/1.1\r\n" +
                 "HOST: 239.255.255.250:1900\r\n" +
                 "CACHE-CONTROL: max-age=90\r\n" +
                 "LOCATION: http://192.168.0.13:49153/nmsDescription.xml\r\n" +
@@ -32,8 +32,8 @@ public class SSDPPacketTest {
     }
 
     @Test
-    public void testConstructor2() {
-        SSDPPacket packet = new SSDPPacket("HTTP/1.1 200 OK\r\n" +
+    public void testStringConstructor2() {
+        SSDPPacket packet = SSDPPacket.createWithData("HTTP/1.1 200 OK\r\n" +
                 "CACHE-CONTROL: max-age=86400\r\n" +
                 "DATE: Mon, 08 Dec 2014 13:16:05 GMT\r\n" +
                 "EXT:\r\n" +
@@ -49,8 +49,8 @@ public class SSDPPacketTest {
     }
 
     @Test
-    public void testConstructorWithLowercaseHeader() {
-        SSDPPacket packet = new SSDPPacket("HTTP/1.1 200 OK\r\n" +
+    public void testStringConstructorWithLowercaseHeader() {
+        SSDPPacket packet = SSDPPacket.createWithData("HTTP/1.1 200 OK\r\n" +
                 "CACHE-CONTROL: max-age=86400\r\n" +
                 "DATE: Mon, 08 Dec 2014 13:16:05 GMT\r\n" +
                 "EXT:\r\n" +
@@ -63,5 +63,39 @@ public class SSDPPacketTest {
                 "USN: uuid:Insight-1_0-221437K1200D6D::urn:Belkin:service:metainfo:1\r\n\r\n");
         assertEquals("http://192.168.0.179:49153/setup.xml", packet.getLocation());
         assertEquals("urn:Belkin:service:metainfo:1", packet.getST());
+    }
+
+    @Test
+    public void testStringConstructorWithSearch() {
+        SSDPPacket packet = SSDPPacket.createWithData("M-SEARCH * HTTP/1.1\n" +
+                "HOST: 239.255.255.250:1900\n" +
+                "MAN: \"ssdp:discover\"\n" +
+                "MX: 5\n" +
+                "ST: ssdp:all\n" +
+                "\n");
+        assertEquals("M-SEARCH", packet.getMethod());
+        assertEquals("ssdp:all", packet.getST());
+    }
+
+    @Test
+    public void testSearchRequest() {
+        SSDPPacket packet = SSDPPacket.createSearchRequest();
+        assertEquals("M-SEARCH * HTTP/1.1\r\n" +
+                "HOST: 239.255.255.250:1900\r\n" +
+                "MAN: \"ssdp:discover\"\r\n" +
+                "MX: 5\r\n" +
+                "ST: ssdp:all\r\n", packet.toString());
+    }
+
+    @Test
+    public void testSearchResponse() {
+        SSDPPacket packet = SSDPPacket.createSearchResponse("uri", "st", "usn");
+        assertEquals("HTTP/1.1 200 OK\r\n" +
+                "CACHE-CONTROL: 180\r\n" +
+                "EXT: \r\n" +
+                "LOCATION: uri\r\n" +
+                "SERVER: Hobson/1.0\r\n" +
+                "ST: st\r\n" +
+                "USN: usn\r\n", packet.toString());
     }
 }
