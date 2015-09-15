@@ -12,11 +12,23 @@ import com.whizzosoftware.hobson.api.plugin.AbstractHobsonPlugin;
 import com.whizzosoftware.hobson.api.plugin.PluginStatus;
 import com.whizzosoftware.hobson.api.property.PropertyContainer;
 import com.whizzosoftware.hobson.api.property.TypedProperty;
+import io.netty.bootstrap.Bootstrap;
+import io.netty.bootstrap.ChannelFactory;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.*;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.DatagramPacket;
+import io.netty.channel.socket.InternetProtocolFamily;
+import io.netty.channel.socket.nio.NioDatagramChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.*;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.NetworkInterface;
+import java.net.UnknownHostException;
 import java.util.Collection;
 
 /**
@@ -24,15 +36,17 @@ import java.util.Collection;
  *
  * @author Dan Noguerol
  */
-public class SSDPPlugin extends AbstractHobsonPlugin implements Runnable {
+public class SSDPPlugin extends AbstractHobsonPlugin implements SSDPContext {
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private static final String PROTOCOL = "ssdp";
     private static final int PORT = 1900;
 
-    private Thread discoThread;
-    private InetAddress address;
-    private MulticastSocket multicastSocket;
+    private NioEventLoopGroup eventLoopGroup;
+    private InetSocketAddress localAddress;
+    private InetSocketAddress groupAddress;
+    private NioDatagramChannel multicastChannel;
+    private NioDatagramChannel localChannel;
 
     public SSDPPlugin(String pluginId) {
         super(pluginId);
@@ -40,7 +54,7 @@ public class SSDPPlugin extends AbstractHobsonPlugin implements Runnable {
 
     @Override
     protected TypedProperty[] createSupportedProperties() {
-        return new TypedProperty[0];
+        return null;
     }
 
     @Override
@@ -50,139 +64,103 @@ public class SSDPPlugin extends AbstractHobsonPlugin implements Runnable {
 
     @Override
     public void onStartup(PropertyContainer config) {
+        logger.debug("SSDP scanner starting");
+        eventLoopGroup = new NioEventLoopGroup(1);
         try {
-            logger.debug("SSDP scanner starting");
-            address = InetAddress.getByName("239.255.255.250");
-            if (discoThread == null) {
-                discoThread = new Thread(this, "SSDP Thread");
-                discoThread.start();
-            }
+            localAddress = new InetSocketAddress(InetAddress.getLocalHost(), 52378);
+            groupAddress = new InetSocketAddress("239.255.255.250", PORT);
+            createSockets();
             setStatus(PluginStatus.running());
         } catch (UnknownHostException e) {
-            logger.error("Unable to lookup UDP address", e);
-            setStatus(PluginStatus.failed("A startup error occurred - see log for details."));
+            setStatus(PluginStatus.failed("A startup error occurred. See log for details."));
         }
     }
 
     @Override
     public void onShutdown() {
         logger.info("SSDP scanner stopping");
-        if (discoThread != null) {
-            discoThread.interrupt();
-        }
+        multicastChannel.leaveGroup(groupAddress.getAddress());
+        multicastChannel.close().syncUninterruptibly();
+        localChannel.close().syncUninterruptibly();
     }
 
     @Override
     public void onPluginConfigurationUpdate(PropertyContainer dictionary) {
     }
 
-    @Override
-    public void run() {
-        logger.debug("SSDP discovery thread is starting");
-
-        int retryCount = 0;
-
+    public void createSockets() {
         try {
-            // create the initial socket
-            createSocket(address);
-
-            while (!Thread.currentThread().isInterrupted()) {
-                try {
-                    logger.trace("Waiting for next response");
-
-                    // wait for a new packet to come in from the socket
-                    byte[] buf = new byte[8192];
-                    final DatagramPacket p = new DatagramPacket(buf, buf.length);
-                    multicastSocket.receive(p);
-
-                    // reset the retry count since we successfully received some data
-                    retryCount = 0;
-
-                    // create a String from the packet data
-                    final String data = new String(p.getData(), 0, p.getLength(), "UTF8");
-                    logger.trace("Received data from {}: {}", p.getAddress().getHostAddress(), data);
-
-                    // publish the advertisement
-                    try {
-                        final SSDPPacket packet = SSDPPacket.createWithData(data);
-                        // ignore packets that originated from Hobson
-                        if (!"Hobson".equals(packet.getServer())) {
-                            if ("M-SEARCH".equals(packet.getMethod())) {
-                                executeInEventLoop(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        try {
-                                            processDiscoveryRequest(p.getAddress(), packet);
-                                        } catch (Throwable e) {
-                                            logger.error("Error processing discovery packet", e);
-                                        }
-                                    }
-                                });
-                            } else if (packet.getUSN() != null && packet.getLocation() != null) {
-                                // execute this in the event loop so we can get on with processing UDP packets as
-                                // quickly as possible
-                                executeInEventLoop(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        publishDeviceAdvertisement(new DeviceAdvertisement.Builder(packet.getUSN(), SSDPPacket.PROTOCOL_ID).rawData(data).object(packet).build(), false);
-                                    }
-                                });
-                            } else {
-                                logger.trace("Ignoring SSDP packet with USN {} and location: {}", packet.getUSN(), packet.getLocation());
-                            }
-                        }
-                    } catch (Exception e) {
-                        logger.error("Error creating SSDP packet", e);
+            Bootstrap clientBootstrap = new Bootstrap()
+                .group(eventLoopGroup)
+                .channelFactory(new ChannelFactory<Channel>() {
+                    @Override
+                    public Channel newChannel() {
+                        return new NioDatagramChannel(InternetProtocolFamily.IPv4);
                     }
-                } catch (SocketTimeoutException ste) {
-                    logger.trace("Socket timed out; re-listening");
-                } catch (IOException ioe) {
-                    retryCount++;
-                    if (retryCount < 5) {
-                        logger.error("An exception occurred; re-creating socket", ioe);
-                        createSocket(address);
-                    } else {
-                        // this will avoid spinning in a tight re-connect loop
-                        // TODO: perhaps exponential decay retries?
-                        throw new IOException("An excessive number of retries was detected");
+                })
+                .localAddress(groupAddress)
+                .option(ChannelOption.IP_MULTICAST_IF, NetworkInterface.getByInetAddress(InetAddress.getLocalHost()))
+                .option(ChannelOption.SO_REUSEADDR, true)
+                .handler(new SSDPInboundHandler(this));
+
+                clientBootstrap.bind().addListener(new ChannelFutureListener() {
+                    @Override
+                    public void operationComplete(ChannelFuture channelFuture) throws Exception {
+                        multicastChannel = (NioDatagramChannel)channelFuture.channel();
+                        multicastChannel.joinGroup(groupAddress, NetworkInterface.getByInetAddress(InetAddress.getLocalHost()));
                     }
+                });
+
+            Bootstrap serverBootstrap = new Bootstrap()
+                .group(eventLoopGroup)
+                .channelFactory(new ChannelFactory<Channel>() {
+                    @Override
+                    public Channel newChannel() {
+                        return new NioDatagramChannel(InternetProtocolFamily.IPv4);
+                    }
+                })
+                .localAddress(localAddress)
+                .option(ChannelOption.IP_MULTICAST_IF, NetworkInterface.getByInetAddress(InetAddress.getLocalHost()))
+                .option(ChannelOption.SO_REUSEADDR, true)
+                .handler(new SSDPInboundHandler(this));
+
+            serverBootstrap.bind().addListener(new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture channelFuture) throws Exception {
+                    localChannel = (NioDatagramChannel) channelFuture.channel();
+                    sendDiscoveryPacket();
                 }
+            });
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void sendDiscoveryPacket() {
+        try {
+            if (localChannel != null) {
+                logger.debug("Sending SSDP discovery packet");
+                byte[] disco = SSDPPacket.createSearchRequest().toString().getBytes();
+                ByteBuf buf = Unpooled.copiedBuffer(disco);
+                localChannel.writeAndFlush(new DatagramPacket(buf, groupAddress, localAddress)).sync();
             }
-        } catch (IOException e) {
-            logger.error("An unrecoverable exception occurred", e);
-            setStatus(PluginStatus.failed("An unrecoverable error occurred - see log for details."));
+        } catch (Throwable e) {
+            e.printStackTrace();
         }
-
-        logger.debug("SSDP discovery thread is exiting");
     }
 
-    synchronized private void createSocket(InetAddress address) throws IOException {
-        if (multicastSocket != null) {
-            multicastSocket.close();
+    public void sendDiscoveryResponse(InetSocketAddress address, DeviceAdvertisement da) throws IOException {
+        try {
+            if (localChannel != null) {
+                String data = SSDPPacket.createSearchResponse(da.getUri(), da.getId(), "urn").toString();
+                logger.trace("Sending SSDP search response to {}: {}", address, data);
+                ByteBuf buf = Unpooled.copiedBuffer(data.getBytes());
+                localChannel.writeAndFlush(new DatagramPacket(buf, address, localAddress)).sync();
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
-
-        // create socket
-        multicastSocket = new MulticastSocket(PORT);
-        multicastSocket.setReuseAddress(true);
-        multicastSocket.setSoTimeout(130000);
-        multicastSocket.joinGroup(address);
-
-        sendDiscoveryPacket();
-        multicastSocket.setSoTimeout(2000);
-    }
-
-    private void sendDiscoveryPacket() throws IOException {
-        logger.debug("Sending SSDP discovery packet");
-        byte[] disco = SSDPPacket.createSearchRequest().toString().getBytes();
-        DatagramPacket packet = new DatagramPacket(disco, disco.length, address, PORT);
-        multicastSocket.send(packet);
-    }
-
-    private void sendDiscoveryResponse(InetAddress address, DeviceAdvertisement da) throws IOException {
-        String data = SSDPPacket.createSearchResponse(da.getUri(), da.getId(), "urn").toString();
-        logger.error("Sending SSDP search response to {}: {}", address.getHostAddress(), data);
-        DatagramPacket packet = new DatagramPacket(data.getBytes(), data.length(), address, PORT);
-        multicastSocket.send(packet);
     }
 
     /**
@@ -193,7 +171,7 @@ public class SSDPPlugin extends AbstractHobsonPlugin implements Runnable {
      *
      * @throws IOException on failure
      */
-    private void processDiscoveryRequest(InetAddress address, SSDPPacket packet) throws IOException {
+    public void processDiscoveryRequest(InetSocketAddress address, SSDPPacket packet) throws IOException {
         if (packet.getST() != null) {
             if ("ssdp:all".equals(packet.getST())) {
                 Collection<DeviceAdvertisement> das = getDiscoManager().getInternalDeviceAdvertisements(getContext().getHubContext(), PROTOCOL);
@@ -206,6 +184,8 @@ public class SSDPPlugin extends AbstractHobsonPlugin implements Runnable {
                 DeviceAdvertisement da = getDiscoManager().getInternalDeviceAdvertisement(getContext().getHubContext(), PROTOCOL, packet.getST());
                 if (da != null) {
                     sendDiscoveryResponse(address, da);
+                } else {
+                    logger.trace("No device advertisement has been published to respond to: {}", packet.getST());
                 }
             }
         }
