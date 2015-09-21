@@ -79,9 +79,12 @@ public class SSDPPlugin extends AbstractHobsonPlugin implements SSDPContext {
     @Override
     public void onShutdown() {
         logger.info("SSDP scanner stopping");
-        multicastChannel.leaveGroup(groupAddress.getAddress());
-        multicastChannel.close().syncUninterruptibly();
-        localChannel.close().syncUninterruptibly();
+        try {
+            multicastChannel.leaveGroup(groupAddress.getAddress());
+            multicastChannel.close().syncUninterruptibly();
+            localChannel.close().syncUninterruptibly();
+        } catch (Throwable ignored) {
+        }
     }
 
     @Override
@@ -103,13 +106,23 @@ public class SSDPPlugin extends AbstractHobsonPlugin implements SSDPContext {
                 .option(ChannelOption.SO_REUSEADDR, true)
                 .handler(new SSDPInboundHandler(this));
 
-                clientBootstrap.bind().addListener(new ChannelFutureListener() {
-                    @Override
-                    public void operationComplete(ChannelFuture channelFuture) throws Exception {
-                        multicastChannel = (NioDatagramChannel)channelFuture.channel();
-                        multicastChannel.joinGroup(groupAddress, NetworkInterface.getByInetAddress(InetAddress.getLocalHost()));
-                    }
-                });
+            InetAddress addr = InetAddress.getLocalHost();
+            if (addr != null) {
+                final NetworkInterface nic = NetworkInterface.getByInetAddress(addr);
+                if (nic != null) {
+                    clientBootstrap.bind().addListener(new ChannelFutureListener() {
+                        @Override
+                        public void operationComplete(ChannelFuture channelFuture) throws Exception {
+                            multicastChannel = (NioDatagramChannel)channelFuture.channel();
+                            multicastChannel.joinGroup(groupAddress, nic);
+                        }
+                    });
+                } else {
+                    logger.error("Unable to get local NIC; discovery may not work properly");
+                }
+            } else {
+                logger.error("Unable to get local address; discovery may not work properly");
+            }
 
             Bootstrap serverBootstrap = new Bootstrap()
                 .group(eventLoopGroup)
