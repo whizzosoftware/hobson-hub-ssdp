@@ -93,35 +93,42 @@ public class SSDPPlugin extends AbstractHobsonPlugin implements SSDPContext {
 
     public void createSockets() {
         try {
-            Bootstrap clientBootstrap = new Bootstrap()
-                .group(eventLoopGroup)
-                .channelFactory(new ChannelFactory<Channel>() {
-                    @Override
-                    public Channel newChannel() {
-                        return new NioDatagramChannel(InternetProtocolFamily.IPv4);
-                    }
-                })
-                .localAddress(groupAddress)
-                .option(ChannelOption.IP_MULTICAST_IF, NetworkInterface.getByInetAddress(InetAddress.getLocalHost()))
-                .option(ChannelOption.SO_REUSEADDR, true)
-                .handler(new SSDPInboundHandler(this));
+            final NetworkInterface nic;
 
-            InetAddress addr = InetAddress.getLocalHost();
-            if (addr != null) {
-                final NetworkInterface nic = NetworkInterface.getByInetAddress(addr);
-                if (nic != null) {
-                    clientBootstrap.bind().addListener(new ChannelFutureListener() {
-                        @Override
-                        public void operationComplete(ChannelFuture channelFuture) throws Exception {
-                            multicastChannel = (NioDatagramChannel)channelFuture.channel();
-                            multicastChannel.joinGroup(groupAddress, nic);
-                        }
-                    });
-                } else {
-                    logger.error("Unable to get local NIC; discovery may not work properly");
-                }
+            String nicString = System.getProperty("force.nic");
+            if (nicString != null) {
+                nic = NetworkInterface.getByInetAddress(InetAddress.getByName(nicString));
             } else {
-                logger.error("Unable to get local address; discovery may not work properly");
+                nic = NetworkInterface.getByInetAddress(InetAddress.getLocalHost());
+            }
+
+            logger.debug("Using network interface: {}; local address: {}", nic, localAddress);
+
+            if (nic == null) {
+                logger.error("Unable to determine local NIC; discovery may not work properly");
+            }
+
+            if (nic != null) {
+                Bootstrap clientBootstrap = new Bootstrap()
+                    .group(eventLoopGroup)
+                    .channelFactory(new ChannelFactory<Channel>() {
+                        @Override
+                        public Channel newChannel() {
+                        return new NioDatagramChannel(InternetProtocolFamily.IPv4);
+                        }
+                    })
+                    .localAddress(groupAddress)
+                    .option(ChannelOption.IP_MULTICAST_IF, nic)
+                    .option(ChannelOption.SO_REUSEADDR, true)
+                    .handler(new SSDPInboundHandler(this));
+
+                clientBootstrap.bind().addListener(new ChannelFutureListener() {
+                    @Override
+                    public void operationComplete(ChannelFuture channelFuture) throws Exception {
+                        multicastChannel = (NioDatagramChannel) channelFuture.channel();
+                        multicastChannel.joinGroup(groupAddress, nic);
+                    }
+                });
             }
 
             Bootstrap serverBootstrap = new Bootstrap()
@@ -133,7 +140,7 @@ public class SSDPPlugin extends AbstractHobsonPlugin implements SSDPContext {
                     }
                 })
                 .localAddress(localAddress)
-                .option(ChannelOption.IP_MULTICAST_IF, NetworkInterface.getByInetAddress(InetAddress.getLocalHost()))
+                .option(ChannelOption.IP_MULTICAST_IF, nic)
                 .option(ChannelOption.SO_REUSEADDR, true)
                 .handler(new SSDPInboundHandler(this));
 
