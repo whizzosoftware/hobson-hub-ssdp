@@ -12,4 +12,5 @@ To find out more and download ready-to-run installers, please visit the
 
 ### hobson-hub-ssdp-scanner
 
-This plugin searches for devices advertising via SSDP and alerts other interested plugins when they are found.
+This plugin provides the ability for Hobson plugins to both find SSDP services on the local network
+and advertise their own services via SSDP.
