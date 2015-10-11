@@ -17,7 +17,7 @@
         <dependency>
             <groupId>com.whizzosoftware.hobson.hub</groupId>
             <artifactId>hobson-hub-api</artifactId>
-            <version>0.5.0</version>
+            <version>0.5.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
         <dependency>

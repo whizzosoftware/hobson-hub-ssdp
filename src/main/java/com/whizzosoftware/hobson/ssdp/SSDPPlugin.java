@@ -8,6 +8,7 @@
 package com.whizzosoftware.hobson.ssdp;
 
 import com.whizzosoftware.hobson.api.disco.DeviceAdvertisement;
+import com.whizzosoftware.hobson.api.hub.NetworkInfo;
 import com.whizzosoftware.hobson.api.plugin.AbstractHobsonPlugin;
 import com.whizzosoftware.hobson.api.plugin.PluginStatus;
 import com.whizzosoftware.hobson.api.property.PropertyContainer;
@@ -25,10 +26,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
-import java.net.UnknownHostException;
 import java.util.Collection;
 
 /**
@@ -43,6 +42,7 @@ public class SSDPPlugin extends AbstractHobsonPlugin implements SSDPContext {
     private static final int PORT = 1900;
 
     private NioEventLoopGroup eventLoopGroup;
+    private NetworkInterface nic;
     private InetSocketAddress localAddress;
     private InetSocketAddress groupAddress;
     private NioDatagramChannel multicastChannel;
@@ -67,11 +67,13 @@ public class SSDPPlugin extends AbstractHobsonPlugin implements SSDPContext {
         logger.debug("SSDP scanner starting");
         eventLoopGroup = new NioEventLoopGroup(1);
         try {
-            localAddress = new InetSocketAddress(InetAddress.getLocalHost(), 52378);
+            NetworkInfo ni = getHubManager().getLocalManager().getNetworkInfo();
+            nic = ni.getNetworkInterface();
+            localAddress = new InetSocketAddress(ni.getInetAddress(), 52378);
             groupAddress = new InetSocketAddress("239.255.255.250", PORT);
             createSockets();
             setStatus(PluginStatus.running());
-        } catch (UnknownHostException e) {
+        } catch (IOException e) {
             setStatus(PluginStatus.failed("A startup error occurred. See log for details."));
         }
     }
@@ -93,15 +95,6 @@ public class SSDPPlugin extends AbstractHobsonPlugin implements SSDPContext {
 
     public void createSockets() {
         try {
-            final NetworkInterface nic;
-
-            String nicString = System.getProperty("force.nic");
-            if (nicString != null) {
-                nic = NetworkInterface.getByInetAddress(InetAddress.getByName(nicString));
-            } else {
-                nic = NetworkInterface.getByInetAddress(InetAddress.getLocalHost());
-            }
-
             logger.debug("Using network interface: {}; local address: {}", nic, localAddress);
 
             if (nic == null) {
