@@ -1,16 +1,19 @@
-/*******************************************************************************
+/*
+ *******************************************************************************
  * Copyright (c) 2014 Whizzo Software, LLC.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
- *******************************************************************************/
+ *******************************************************************************
+*/
 package com.whizzosoftware.hobson.ssdp;
 
 import com.whizzosoftware.hobson.api.disco.DeviceAdvertisement;
 import com.whizzosoftware.hobson.api.hub.NetworkInfo;
 import com.whizzosoftware.hobson.api.plugin.AbstractHobsonPlugin;
 import com.whizzosoftware.hobson.api.plugin.PluginStatus;
+import com.whizzosoftware.hobson.api.plugin.PluginType;
 import com.whizzosoftware.hobson.api.property.PropertyContainer;
 import com.whizzosoftware.hobson.api.property.TypedProperty;
 import io.netty.bootstrap.Bootstrap;
@@ -48,18 +51,23 @@ public class SSDPPlugin extends AbstractHobsonPlugin implements SSDPContext {
     private NioDatagramChannel multicastChannel;
     private NioDatagramChannel localChannel;
 
-    public SSDPPlugin(String pluginId) {
-        super(pluginId);
+    public SSDPPlugin(String pluginId, String version, String description) {
+        super(pluginId, version, description);
     }
 
     @Override
-    protected TypedProperty[] createSupportedProperties() {
+    protected TypedProperty[] getConfigurationPropertyTypes() {
         return null;
     }
 
     @Override
     public String getName() {
         return "SSDP Plugin";
+    }
+
+    @Override
+    public PluginType getType() {
+        return PluginType.CORE;
     }
 
     @Override
@@ -90,7 +98,7 @@ public class SSDPPlugin extends AbstractHobsonPlugin implements SSDPContext {
     }
 
     @Override
-    public void onPluginConfigurationUpdate(PropertyContainer dictionary) {
+    public void onPluginConfigurationUpdate(PropertyContainer config) {
     }
 
     public void createSockets() {

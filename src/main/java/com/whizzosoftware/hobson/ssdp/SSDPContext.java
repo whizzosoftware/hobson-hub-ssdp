@@ -8,6 +8,7 @@
 package com.whizzosoftware.hobson.ssdp;
 
 import com.whizzosoftware.hobson.api.disco.DeviceAdvertisement;
+import io.netty.util.concurrent.Future;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -20,6 +21,6 @@ import java.net.InetSocketAddress;
 public interface SSDPContext {
     void processDiscoveryRequest(InetSocketAddress address, SSDPPacket packet) throws IOException;
     void publishDeviceAdvertisement(DeviceAdvertisement advertisement, boolean internal);
-    void executeInEventLoop(Runnable runnable);
+    Future executeInEventLoop(Runnable runnable);
     void sendDiscoveryPacket();
 }
